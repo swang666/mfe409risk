@@ -1,0 +1,216 @@
+---
+title: "MFE409 Risk Management Homework 1"
+author: "Sumeng Wang"
+date: "April 8, 2019"
+output: pdf_document
+---
+
+## Question 1
+
+1. The CDF for the exponential distribution is $F(x,\lambda) = 1 - e^{-\lambda x}$. Since the mean is 200, we get $1/\lambda = 200 \Longrightarrow \lambda = 0.005$. Take $c = 0.999$, we get $F^{-1}(1-c) = -\log(1-1+c)/\lambda= -\log(c)/\lambda = 0.001/\lambda = 0.2$. Hence $VaR = W_0 - 0.001/\lambda = 200 - 0.2 = 199.8$  
+
+2. Since we are shorting, we can first calculate $F^{-1}(c) = -\log(1-c)/\lambda = -\log(0.001)/\lambda = 6.908/\lambda = 1381.6$. Then $VaR = 1381.6 - 200 = 1181.6$
+
+3. The difference is that when we are holding the asset, we go to the left of $W_0$ to find VaR. When we are shorting the asset, we go to the right to find the VaR.
+
+4. $$ES_1 = W_0 - \frac{\int_0^{W_0-VaR}xf(x) dx}{\int_0^{W_0-VaR}f(x) dx}$$
+Since the PDF of the exponential distribution is $f(x, \lambda) = \lambda e^{-\lambda x }$.  
+\begin{align*}
+d(\lambda x e^{-\lambda x}) &= \lambda e^{-\lambda x} - \lambda^2 x e^{-\lambda x}\\
+\int d(\lambda x e^{-\lambda x}) &= \int \lambda e^{-\lambda x} - \int \lambda^2 x e^{-\lambda x}\\
+\int \lambda x e^{-\lambda x} &= \frac{-e^{-\lambda x}}{\lambda} -  x e^{-\lambda x}
+\end{align*}
+Hence, $$ES_1 = W_0 - \frac{-e^{-\lambda x}/\lambda - x e^{-\lambda x}|_0^{0.2}}{0.001} =W_0 - \frac{-e^{-0.001}/0.005-0.2e^{-0.001}+1/0.005}{0.001}= 199.9001$$
+
+For the shorting, we have 
+\begin{align*}
+ES_2 &= -W_0 + \frac{\int_{W_0+VaR}^{\infty}xf(x) dx}{\int_{W_0+VaR}^{\infty}f(x) dx}\\
+&=-W_0 + \frac{-e^{-\lambda x}/\lambda - x e^{-\lambda x}|_{1381.6}^{\infty}}{0.001}
+\end{align*}
+To calculate $\lim_{x \rightarrow \infty} - x e^{-\lambda x}$, we use L'hopital rules. Let $f(x) =  x, g(x) = e^{\lambda x}$, both approaches infinity when $x$ goes to infinity. By L'hopital rule, we have $\lim_{x \rightarrow \infty} \frac{f(x)}{g(x)} = \lim_{x \rightarrow \infty} \frac{f'(x)}{g'(x)} = \lim_{x \rightarrow \infty} - \frac{1}{\lambda e^{\lambda x}} = 0$.  
+Therefore, we have 
+\begin{align*}
+ES_2 &= -W_0 + \frac{-e^{-\lambda x} - \lambda x e^{-\lambda x}|_{1381.6}^{\infty}}{0.001}\\
+&=-200 + \frac{e^{-0.005\cdot 1381.6}/0.005 + 1381.6 \cdot e^{-0.005 \cdot 1381.6}}{0.001}\\
+&=1381.213
+\end{align*}
+
+## Question 2
+1. From her view, we have $\mu = 0.08, \sigma_1 = 0.12$. Using qnorm function from R, we get
+```{r}
+qnorm(0.01)
+```
+Therefore, $VaR_1 = - (0.08 + (-2.3263)* 0.12) = 0.199$ billion.  
+Similarlly, $VaR_2 = - (0.08 + (-2.3263)* 0.2) = 0.385$ billion.  
+For the common view, we consider the mixture of two normal distribution. Since the mean is the same for the two, we can get that $\sigma$ for the mixture is $$ \sigma = \sqrt{\pi * \sigma_1^2 + (1-\pi) *\sigma_2^2}$$
+Then $\sigma =$ `r sqrt(0.7*0.12^2 + 0.3*0.2^2)`. Hence the $VaR =$ `r - (0.08 + (-2.3263)* sqrt(0.7*0.12^2 + 0.3*0.2^2))`
+
+2. 
+```{r}
+library(ggplot2)
+weights = seq(0, 1, 0.01)
+sigma1 = 0.12
+sigma2 = 0.2
+sigma = sqrt(weights*sigma1^2 + (1- weights)*sigma2^2)
+VaR = - (0.08 + (-2.3263)*sigma)
+out = as.data.frame(cbind(weights, VaR))
+ggplot(data=out, aes(x = weights, y = VaR)) + geom_line()
+```
+As we can see, the plot is concaved down slightly.
+
+3.
+Suppose $\sigma \equiv \Gamma(\alpha, \beta)$, then for each $\sigma$, we have pdf as $$f(\sigma) = \frac{\beta^\alpha \sigma^{\alpha-1} e^{-\beta \sigma}}{\Gamma(\alpha)}$$
+So the weighted volatility is $$ \hat{\sigma} = \sqrt{\sum_{i=1}^{\infty}\pi_i*\sigma_i^2} = \sqrt{\int_{0}^{\infty} \sigma^2 f(\sigma) d\sigma}$$
+Then $$VaR = - (0.08 + (-2.3263)*\hat{\sigma})$$
+
+## Question 3
+1. Since the stock price follows a geometric browian motion, we can write $$S_t = S_0 e^{(\mu - \frac{1}{2}\sigma^2)t+\sigma W_t}$$, which is a log-normal distribution.  
+The CDF of this distribution is: $$F(x) = \Phi(\frac{\log x - \hat{\mu}}{\hat{\sigma}})$$
+where $\hat{\mu} = \log(S_0)+(\mu - \frac{1}{2}\sigma^2)t$, $\hat{\sigma} = \sigma\sqrt{t}$  
+To get the bottom point, we calculate the inverse CDF: $$F^{-1}(1-c) = e^{\hat{\sigma}\Phi^{-1}(1-c)+\hat{\mu}}$$.
+Then VaR is:$$S_0 - e^{\hat{\sigma}\Phi^{-1}(1-c)+\hat{\mu}}$$
+Simplyfied it, we get: $$VaR = S_0(1 - \exp(\sigma\sqrt{t}\Phi^{-1}(1-c)+(\mu - \frac{1}{2}\sigma^2)t))$$
+
+2. The average stock price at time $t$ is $E(S_t) = S_0 e^{\mu t}$. Clearly it is bigger than $S_0$ so we will not be shorting.  
+Since the return on stocks is $e^{\mu t} - 1 = 0.00278$, and the return on risk free asset is $r \cdot  t = 0.00079$, we want to hold stocks as much as possible with the constraint $VaR \leq 100$ million.  
+For each share, using the formula from previous question, the VaR is $$50 \cdot (1 - \exp(0.16\cdot \sqrt{10/252}\Phi^{-1}(0.01)+(0.07 - \frac{1}{2}\cdot 0.16^2)\cdot 10/252)) = 3.46775$$
+Therefore, the maximum number of stocks that we can hold is $100/3.46775 = 28.83714$ million shares. So we will be holding $28.83714\cdot 50 = 1441.857$ million dollars in stocks, and borrowing 1341.857 million dollars by shorting risk free rate. The return of this portfolio then will be $$ (1441.857 \cdot 0.00278 - 1341.857 \cdot 0.00079)/100 = 0.029483$$
+
+3. Using Black-Scholes, we get the price of option:
+```{r}
+BSCall = function(S, K, r, t, sigma) {
+  d1  =  (log(S/K) + (r + sigma^2/2)*t) / (sigma*sqrt(t))
+  d2  =  d1 - sigma*sqrt(t)
+  return(S * pnorm(d1) - K*exp(-r*t)*pnorm(d2))
+}
+callprice = BSCall(50, 50, 0.02, 1/4, 0.16)
+callprice
+```
+After 10 days, we use monte carlo simulation to calculate the expected call option price
+```{r}
+set.seed(12345)
+mu = 0.07
+sigma = 0.16
+t = 10/252
+r = 0.02
+S0 = 50
+out = rep(0,100000)
+
+for (i in 1:100000){
+  St = S0 * exp((mu - 0.5*sigma^2)*t + sigma * sqrt(t)*rnorm(1))
+  out[i] = BSCall(St, 50, 0.02, 1/4-10/252, sigma)
+}
+mean(out)*exp(-r*t)
+
+```
+As we can see, the value of the option increases, so we should long the option. And the VaR is:
+```{r}
+VaR = callprice - quantile(out, 0.01)[[1]]
+VaR
+```
+Therefore, by the VaR constraint, we can long at most $100/  1.3804 =  72.44277$ million call options. So we will be investing $72.44277\cdot  1.719159 = 124.5406$ million dollars in options, and borrowing 24.5406 million dollars by shorting risk free rate. The return of this portfolio then will be $$ (1.774139\cdot 72.44277 - 124.5406 - 24.5406*0.00079)/100 = 0.039636$$
+
+4. Using Black-Scholes, we get the price of option:
+```{r}
+BSPut = function(S, K, r, t, sigma) {
+  d1  =  (log(S/K) + (r + sigma^2/2)*t) / (sigma*sqrt(t))
+  d2  =  d1 - sigma*sqrt(t)
+  return(-S * pnorm(-d1) + K*exp(-r*t)*pnorm(-d2))
+}
+putprice = BSPut(50, 50, 0.02, 1/4, 0.16)
+putprice
+```
+After 10 days, we use monte carlo simulation to calculate the expected put option price
+```{r}
+set.seed(12345)
+mu = 0.07
+sigma = 0.16
+t = 10/252
+r = 0.02
+S0 = 50
+out = rep(0,100000)
+
+for (i in 1:100000){
+  St = S0 * exp((mu - 0.5*sigma^2)*t + sigma * sqrt(t)*rnorm(1))
+  out[i] = BSPut(St, 50, 0.02, 1/4-10/252, sigma)
+}
+mean(out)*exp(-r*t)
+```
+As we can see, the value of the option decreases, so we should short the option. The VaR is:
+```{r}
+VaR = -putprice + quantile(out, 0.99)[[1]]
+VaR
+```
+Therefore, by the VaR constraint, we can short at most $100/  2.135286 =  46.83213$ million put options. So we will be shorting $46.83213\cdot  1.469783 = 68.83307$ million dollars in options, and investing 168.83307 million dollars in risk free rate. The return of this portfolio then will be $$ (68.83307 -  1.424139*46.83213 + 168.83307*0.00079)/100 = 0.02271$$
+
+5. 
+For the call option, we use the strike prices from 20 to 80 at an increment of 0.1
+```{r}
+library(ggplot2)
+
+mu = 0.07
+sigma = 0.16
+t = 10/252
+r = 0.02
+S0 = 50
+strikes = seq(20, 80, 0.1)
+return = rep(0, 601)
+option_pos = rep(0, 601)
+P0 = rep(0, 601)
+Pt = rep(0, 601)
+for (j in 1:601){
+  set.seed(12345)
+  callprice = BSCall(50, strikes[j], 0.02, 1/4, 0.16)
+  St = S0 * exp((mu - 0.5*sigma^2)*t + sigma * sqrt(t)*rnorm(10000))
+  out= BSCall(St, strikes[j], 0.02, 1/4-10/252, sigma)
+  expected_price = mean(out)*exp(-r*t)
+  VaR = callprice - quantile(out, 0.01)[[1]]
+  pos = 100/VaR
+  mpos = pos * callprice
+  bond_pos = 100 - mpos
+  ret = (expected_price*pos - mpos + bond_pos * 0.00079)/100
+  return[j] = ret
+  option_pos[j] = mpos
+  P0[j] = callprice
+  Pt[j] = expected_price
+}
+ans = as.data.frame(cbind(strikes,return, option_pos, P0, Pt))
+ggplot(data = ans, aes(x = strikes)) + geom_line(aes(y = return)) + ggtitle('portfolio return vs. strikes')
+ggplot(data = ans, aes(x = strikes)) + geom_line(aes(y = option_pos)) + ggtitle('call option money position vs. strikes')
+```
+As we can see from the above figures, the expected portfolio return does not change too much when the strike price is less than the initial stock price. After the strike price is larger than the initial stock price, the expected return starts to increase at an exponential speed against the strike, but decreases after the strike price exceeds about 66. Meanwhile, as the option becomes further deep out of money, the option position converges closer to our initial capital 100 million because we are more likely to lose them all.
+
+Similarly, for the put option:
+```{r}
+
+mu = 0.07
+sigma = 0.16
+t = 10/252
+r = 0.02
+S0 = 50
+strikes = seq(30, 80, 0.1)
+return = rep(0, 501)
+option_pos = rep(0,501)
+P0 = rep(0, 501)
+Pt = rep(0, 501)
+for (j in 1:501){
+  set.seed(12345)
+  putprice = BSPut(50, strikes[j], 0.02, 1/4, 0.16)
+  St = S0 * exp((mu - 0.5*sigma^2)*t + sigma * sqrt(t)*rnorm(10000))
+  out= BSPut(St, strikes[j], 0.02, 1/4-10/252, sigma)
+  expected_price = mean(out)*exp(-r*t)
+  VaR = -putprice + quantile(out, 0.99)[[1]]
+  pos = 100/VaR
+  mpos = -pos * putprice
+  bond_pos = 100 - mpos
+  ret = (-expected_price*pos - mpos + bond_pos * 0.00079)/100
+  return[j] = ret
+  option_pos[j] = mpos
+  P0[j] = callprice
+  Pt[j] = expected_price
+}
+ans = as.data.frame(cbind(strikes,return, option_pos, P0, Pt))
+ggplot(data = ans, aes(x = strikes)) + geom_line(aes(y = return)) + ggtitle('portfolio return vs. strikes')
+ggplot(data = ans, aes(x = strikes)) + geom_line(aes(y = option_pos)) + ggtitle('put option money position vs. strikes')
+```
+As we can see from the above figures, the return of the put portfolio also has a turning point. It has lowest return at strike price equal to 35. After that, the return increases. And after around 60, the return increases at a lower rate. For the put position, we are able to short more as the strike price increases because underlying asset price has less effect to option price when the option is more and more deep in the money.
